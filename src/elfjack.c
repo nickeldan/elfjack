@@ -150,7 +150,7 @@ ejParseElf(const char *path, ejElfInfo *info)
     size_t page_mask;
     struct stat fs;
     struct ehdrParams params;
-    int (*find_load_addr)(const void *, uint16_t, unsigned int *);
+    int (*find_load_addr)(const void *, uint32_t, unsigned int *);
     int (*find_shdrs)(ejElfInfo *, const struct ehdrParams *);
 
     if (!path || !info) {

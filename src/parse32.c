@@ -28,11 +28,11 @@ getShdrStrings(const struct ejMapInfo *map, const Elf32_Shdr *shdr, size_t *size
 }
 
 int
-findLoadAddr32(const void *pheader, uint16_t phnum, unsigned int *load_addr)
+findLoadAddr32(const void *pheader, uint32_t phnum, unsigned int *load_addr)
 {
     const Elf32_Phdr *phdr = pheader;
 
-    for (uint16_t k = 0; k < phnum; k++) {
+    for (uint32_t k = 0; k < phnum; k++) {
         if (phdr[k].p_type == PT_LOAD) {
             *load_addr = phdr[k].p_offset;
             return EJ_RET_OK;
@@ -55,7 +55,7 @@ findShdrs32(ejElfInfo *info, const struct ehdrParams *params)
         return EJ_RET_MALFORMED_ELF;
     }
 
-    for (uint16_t k = 1; k < params->shnum; k++) {
+    for (uint64_t k = 1; k < params->shnum; k++) {
         const char *section_name;
         const void *section_start;
         const Elf32_Shdr *shdr = &table[k];
@@ -65,7 +65,7 @@ findShdrs32(ejElfInfo *info, const struct ehdrParams *params)
         }
 
         if (!SHDR_SANITY_CHECK(shdr, info->map.size) || shdr->sh_name >= strings_size) {
-            emitError("File is not big enough to contain section #%u", k);
+            emitError("File is not big enough to contain section #%llu", (unsigned long long)k);
             return EJ_RET_MALFORMED_ELF;
         }
         section_start = AT_OFFSET(info->map.data, shdr->sh_offset);
