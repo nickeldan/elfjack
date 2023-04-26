@@ -1,3 +1,3 @@
 #!/bin/sh -ex
 
-find . -path ./packages -prune -o -name '*.[hc]' -print0 | xargs -0 -n 1 clang-format --dry-run --Werror
+find . -name '*.[hc]' -print0 | xargs -0 -n 1 clang-format --dry-run --Werror
