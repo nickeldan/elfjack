@@ -1,0 +1,6 @@
+*.o
+*.so
+*.a
+deps.mk
+find_function
+find_got
