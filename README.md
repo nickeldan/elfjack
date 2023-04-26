@@ -9,7 +9,7 @@ The functionality can be accessed by
 #include <elfjack/elfjack.h>
 ```
 
-An ELF file can be parsed by
+An ELF file can be parsed with
 
 ```c
 int
@@ -18,7 +18,7 @@ ejParseElf(const char *path, ejElfInfo *info);
 
 This function returns `EJ_RET_OK` if successful and an error code otherwise (defined in [elfjack/elfjack.h](include/elfjack/elfjack.h)).
 
-If `ejParseElf` fails, you can get an error message describing why with
+If `ejParseElf` fails, you can get a more descriptive explanation with
 
 ```c
 char *
@@ -27,13 +27,13 @@ ejGetError(void);
 
 This returns a pointer to a thread-local buffer of size `EJ_ERROR_BUFFER_SIZE` (defined in [elfjack/config.h](include/elfjack/config.h)).
 
-When done with the info object, its resources can be released by
+When done with the info object, its resources can be released with
 
 ```c
 ejReleaseInfo(ejElfInfo *info);
 ```
 
-`ejElfInfo` is a mostly opaque structure, at least in intention.  That is, most of its fields should not be accessed by the users of the library.  The exception is
+`ejElfInfo` is a mostly opaque structure, at least in intention.  That is, most of its fields should not be accessed by users of the library.  The exception is
 
 ```c
 typedef struct ejElfInfo {
@@ -41,7 +41,7 @@ typedef struct ejElfInfo {
     // ...
     struct {
         uint16_t machine;
-        unsigned char ptr_size;
+        unsigned char pointer_size;
         unsigned int little_endian : 1;
     } visible;
 } ejElfInfo;
@@ -49,7 +49,7 @@ typedef struct ejElfInfo {
 
 `machine` holds the value of the `e_machine` field from the ELF header (see [`man elf`](https://www.man7.org/linux/man-pages/man5/elf.5.html)).  The other two fields should be self-explanatory.
 
-Once you've parsed an ELF file, you can attempt to find the addresses of GOT entries by
+Once you've parsed an ELF file, you can attempt to find the addresses of GOT entries with
 
 ```c
 ejAddr
@@ -59,19 +59,19 @@ ejFindGotEntry(const ejElfInfo *info, const char *func_name);
 where
 
 ```c
-typedef unsigned long long ejAddr`
+typedef unsigned long long ejAddr;
 ```
 
 This function returns the relative address of the GOT entry if one was found and `EJ_ADDR_NOT_FOUND` otherwise.
 
-You can likewise locate the start of a function within the `.text` section by
+You can likewise locate the start of a function within the `.text` section with
 
 ```c
 ejAddr
 ejFindFunction(const ejElfInfo *info, const char *func_name);
 ```
 
-Once you know where an ELF file is loaded in virtual memory, you can convert a relative address to an absolute one by
+Once you know where an ELF file is loaded in virtual memory, you can convert a relative address to an absolute one with
 
 ```c
 ejAddr
