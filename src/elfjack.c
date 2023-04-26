@@ -192,14 +192,14 @@ ejParseElf(const char *path, ejElfInfo *info)
         find_shdrs = findShdrs64;
         info->find_symbol = findSymbol64;
         info->find_got_entry = findGotEntry64;
-        info->visible.ptr_size = 8;
+        info->visible.pointer_size = 8;
     }
     else {
         find_load_addr = findLoadAddr32;
         find_shdrs = findShdrs32;
         info->find_symbol = findSymbol32;
         info->find_got_entry = findGotEntry32;
-        info->visible.ptr_size = 4;
+        info->visible.pointer_size = 4;
     }
 
     ret = find_load_addr(AT_OFFSET(info->map.data, params.phoff), params.phnum, &load_addr);

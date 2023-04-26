@@ -54,7 +54,7 @@ typedef struct ejElfInfo {
     unsigned int dynamic : 1;
     struct {
         uint16_t machine;
-        unsigned char ptr_size;
+        unsigned char pointer_size;
         unsigned int little_endian : 1;
     } visible;
 } ejElfInfo;
@@ -68,6 +68,9 @@ typedef struct ejElfInfo {
 int
 ejParseElf(const char *path, ejElfInfo *info);
 
+char *
+ejGetError(void) EJ_PURE;
+
 void
 ejReleaseInfo(ejElfInfo *info);
 
@@ -79,6 +82,3 @@ ejFindFunction(const ejElfInfo *info, const char *func_name) EJ_PURE;
 
 ejAddr
 ejResolveAddress(const ejElfInfo *info, ejAddr addr, ejAddr file_start) EJ_PURE;
-
-char *
-ejGetError(void) EJ_PURE;
