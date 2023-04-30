@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "parse64.h"
@@ -45,7 +46,6 @@ findLoadAddr64(const void *pheader, uint32_t phnum, unsigned int *load_addr)
 int
 findShdrs64(ejElfInfo *info, const struct ehdrParams *params)
 {
-    unsigned int num_found = 0;
     size_t strings_size;
     const char *strings;
     const Elf64_Shdr *table = AT_OFFSET(info->map.data, params->shoff);
@@ -100,15 +100,22 @@ findShdrs64(ejElfInfo *info, const struct ehdrParams *params)
                 info->rels.info_offset = offsetof(Elf64_Rel, r_info);
             }
         }
-        else if (info->text_section_index == 0 && strcmp(section_name, ".text") == 0) {
-            info->text_section_index = k;
-        }
-        else {
-            continue;
-        }
+        else if (shdr->sh_type == SHT_PROGBITS && shdr->sh_flags & SHF_EXECINSTR &&
+                 strncmp(section_name, ".text", 5) == 0) {
+            if (info->text.num_sections == info->text.capacity) {
+                uint64_t *new_idxs;
+                size_t new_capacity = (info->text.capacity == 0) ? 1 : (info->text.capacity + 2);
 
-        if (++num_found == 4) {
-            break;
+                new_idxs = realloc(info->text.section_idxs, sizeof(uint64_t) * new_capacity);
+                if (!new_idxs) {
+                    emitError("Failed to allocate %zu bytes", sizeof(uint64_t) * new_capacity);
+                    return EJ_RET_OUT_OF_MEMORY;
+                }
+                info->text.section_idxs = new_idxs;
+                info->text.capacity = new_capacity;
+            }
+
+            info->text.section_idxs[info->text.num_sections++] = k;
         }
     }
 
@@ -116,7 +123,7 @@ findShdrs64(ejElfInfo *info, const struct ehdrParams *params)
 }
 
 bool
-findSymbol64(const struct ejSymbolInfo *symbols, const char *func_name, uint16_t section_index, ejAddr *addr,
+findSymbol64(const struct ejSymbolInfo *symbols, const char *func_name, uint64_t *section_index, ejAddr *addr,
              uint64_t *symbol_index)
 {
     const Elf64_Sym *syms = symbols->start;
@@ -124,7 +131,7 @@ findSymbol64(const struct ejSymbolInfo *symbols, const char *func_name, uint16_t
     for (uint64_t k = 0; k < symbols->count; k++) {
         const Elf64_Sym *sym = &syms[k];
 
-        if (ELF64_ST_TYPE(sym->st_info) != STT_FUNC || sym->st_shndx != section_index) {
+        if (ELF64_ST_TYPE(sym->st_info) != STT_FUNC) {
             continue;
         }
 
@@ -132,6 +139,8 @@ findSymbol64(const struct ejSymbolInfo *symbols, const char *func_name, uint16_t
             return false;
         }
         if (strcmp(symbols->strings + sym->st_name, func_name) == 0) {
+            *section_index = sym->st_shndx;
+
             if (addr) {
                 *addr = sym->st_value;
             }

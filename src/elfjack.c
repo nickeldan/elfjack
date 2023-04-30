@@ -1,5 +1,6 @@
 #include <fcntl.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -222,8 +223,8 @@ ejParseElf(const char *path, ejElfInfo *info)
     else if (!info->symbols.strings) {
         emitError(".dynstr not found");
     }
-    else if (info->text_section_index == 0) {
-        emitError(".text not found");
+    else if (!info->text.section_idxs) {
+        emitError("No .text sections found");
     }
     else {
         return EJ_RET_OK;
@@ -244,19 +245,21 @@ ejReleaseInfo(ejElfInfo *info)
     }
 
     munmap((void *)info->map.data, info->map.map_size);
+    free(info->text.section_idxs);
     info->map.data = NULL;
 }
 
 ejAddr
 ejFindGotEntry(const ejElfInfo *info, const char *func_name)
 {
-    uint64_t symbol_index;
+    uint64_t section_index, symbol_index;
 
     if (!INFO_INITIALIZED(info) || !func_name || !info->rels.start) {
         return EJ_ADDR_NOT_FOUND;
     }
 
-    if (!info->find_symbol(&info->symbols, func_name, 0, NULL, &symbol_index)) {
+    if (!info->find_symbol(&info->symbols, func_name, &section_index, NULL, &symbol_index) ||
+        section_index != SHN_UNDEF) {
         return EJ_ADDR_NOT_FOUND;
     }
 
@@ -266,17 +269,24 @@ ejFindGotEntry(const ejElfInfo *info, const char *func_name)
 ejAddr
 ejFindFunction(const ejElfInfo *info, const char *func_name)
 {
+    uint64_t section_index;
     ejAddr addr;
 
     if (!INFO_INITIALIZED(info) || !func_name) {
         return EJ_ADDR_NOT_FOUND;
     }
 
-    if (!info->find_symbol(&info->symbols, func_name, info->text_section_index, &addr, NULL)) {
+    if (!info->find_symbol(&info->symbols, func_name, &section_index, &addr, NULL)) {
         return EJ_ADDR_NOT_FOUND;
     }
 
-    return addr;
+    for (size_t k = 0; k < info->text.num_sections; k++) {
+        if (info->text.section_idxs[k] == section_index) {
+            return addr;
+        }
+    }
+
+    return EJ_ADDR_NOT_FOUND;
 }
 
 ejAddr

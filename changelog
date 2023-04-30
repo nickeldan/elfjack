@@ -1,0 +1,2 @@
+0.1.1:
+    - Added support for ELF files with function sections.

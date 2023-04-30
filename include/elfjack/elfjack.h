@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#define ELFJACK_VERSION "0.1.0"
+#define ELFJACK_VERSION "0.1.1"
 
 #ifdef __GNUC__
 #define EJ_PURE __attribute__((pure))
@@ -16,6 +16,7 @@ enum ejRetValue {
     EJ_RET_OK = 0,
     EJ_RET_BAD_USAGE,
     EJ_RET_READ_FAILURE,
+    EJ_RET_OUT_OF_MEMORY,
     EJ_RET_MAP_FAIL,
     EJ_RET_NOT_ELF,
     EJ_RET_MISSING_INFO,
@@ -45,14 +46,20 @@ struct ejRelInfo {
     unsigned int info_offset;
 };
 
+struct ejTextInfo {
+    uint64_t *section_idxs;
+    size_t num_sections;
+    size_t capacity;
+};
+
 typedef struct ejElfInfo {
-    bool (*find_symbol)(const struct ejSymbolInfo *, const char *, uint16_t, ejAddr *, uint64_t *);
+    bool (*find_symbol)(const struct ejSymbolInfo *, const char *, uint64_t *, ejAddr *, uint64_t *);
     ejAddr (*find_got_entry)(const struct ejRelInfo *, uint64_t);
     struct ejMapInfo map;
     struct ejSymbolInfo symbols;
     struct ejRelInfo rels;
+    struct ejTextInfo text;
     unsigned int load_bias;
-    uint16_t text_section_index;
     unsigned int dynamic : 1;
     struct {
         uint16_t machine;

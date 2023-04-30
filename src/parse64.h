@@ -11,7 +11,7 @@ int
 findShdrs64(ejElfInfo *info, const struct ehdrParams *params) EJ_HIDDEN;
 
 bool
-findSymbol64(const struct ejSymbolInfo *symbols, const char *func_name, uint16_t section_index, ejAddr *addr,
+findSymbol64(const struct ejSymbolInfo *symbols, const char *func_name, uint64_t *section_index, ejAddr *addr,
              uint64_t *symbol_index) EJ_HIDDEN;
 
 ejAddr
