@@ -41,24 +41,24 @@ parseElfHeader(ejElfInfo *info, struct ehdrParams *params)
     const Elf32_Ehdr *ehdr_32 = info->map.data;
 
     if (info->map.size <= EI_DATA || memcmp(info->map.data, ELFMAG, SELFMAG) != 0) {
-        emitError("Not an ELF file");
+        ejEmitError("Not an ELF file");
         return EJ_RET_NOT_ELF;
     }
 
     switch (ehdr_64->e_ident[EI_CLASS]) {
     case ELFCLASS32: params->_64 = false; break;
     case ELFCLASS64: params->_64 = true; break;
-    default: emitError("Invalid EI_CLASS in ELF header"); return EJ_RET_MALFORMED_ELF;
+    default: ejEmitError("Invalid EI_CLASS in ELF header"); return EJ_RET_MALFORMED_ELF;
     }
 
     switch (ehdr_64->e_ident[EI_DATA]) {
     case ELFDATA2LSB: info->visible.little_endian = true; break;
     case ELFDATA2MSB: info->visible.little_endian = false; break;
-    default: emitError("Invalid EI_DATA in ELF header"); return EJ_RET_MALFORMED_ELF;
+    default: ejEmitError("Invalid EI_DATA in ELF header"); return EJ_RET_MALFORMED_ELF;
     }
 
     if (info->map.size < (params->_64 ? sizeof(Elf64_Ehdr) : sizeof(Elf32_Ehdr))) {
-        emitError("File is not big enough to contain the ELF header");
+        ejEmitError("File is not big enough to contain the ELF header");
         return EJ_RET_MALFORMED_ELF;
     }
 
@@ -84,21 +84,21 @@ parseElfHeader(ejElfInfo *info, struct ehdrParams *params)
     }
 
     if (params->shstrndx >= params->shnum) {
-        emitError("Invalid e_shstrndx in ELF header");
+        ejEmitError("Invalid e_shstrndx in ELF header");
         return EJ_RET_MALFORMED_ELF;
     }
 
     switch (ehdr_64->e_type) {
     case ET_DYN: info->dynamic = true; break;
     case ET_EXEC: break;
-    default: emitError("File is neither an executable nor a shared object"); return EJ_RET_NOT_ELF;
+    default: ejEmitError("File is neither an executable nor a shared object"); return EJ_RET_NOT_ELF;
     }
 
     if (params->shnum >= SHN_LORESERVE) {
         const void *sheader = AT_OFFSET(info->map.data, params->shoff);
 
         if ((unsigned long)params->shoff + shentsize > info->map.size) {
-            emitError("File is not big enough to contain the section header table");
+            ejEmitError("File is not big enough to contain the section header table");
             return EJ_RET_MALFORMED_ELF;
         }
 
@@ -115,11 +115,11 @@ parseElfHeader(ejElfInfo *info, struct ehdrParams *params)
     }
 
     if (params->shnum == 0) {
-        emitError("File contains no section headers");
+        ejEmitError("File contains no section headers");
         return EJ_RET_MISSING_INFO;
     }
     if ((unsigned long)params->shoff + shentsize * params->shnum > info->map.size) {
-        emitError("File is not big enough to contain the section header table");
+        ejEmitError("File is not big enough to contain the section header table");
         return EJ_RET_MALFORMED_ELF;
     }
 
@@ -131,11 +131,11 @@ parseElfHeader(ejElfInfo *info, struct ehdrParams *params)
     }
 
     if (params->phnum == 0) {
-        emitError("File contains no program headers");
+        ejEmitError("File contains no program headers");
         return EJ_RET_MISSING_INFO;
     }
     if ((unsigned long)(params->phoff + phentsize * params->phnum) > info->map.size) {
-        emitError("File is not big enough to contain the program header table");
+        ejEmitError("File is not big enough to contain the program header table");
         return EJ_RET_MALFORMED_ELF;
     }
 
@@ -154,7 +154,7 @@ ejParseElf(const char *path, ejElfInfo *info)
     int (*find_shdrs)(ejElfInfo *, const struct ehdrParams *);
 
     if (!path || !info) {
-        emitError("The arguments cannot be NULL");
+        ejEmitError("The arguments cannot be NULL");
         return EJ_RET_BAD_USAGE;
     }
 
@@ -162,11 +162,11 @@ ejParseElf(const char *path, ejElfInfo *info)
 
     fd = open(path, O_RDONLY);
     if (fd < 0) {
-        emitError("open: %s", strerror(errno));
+        ejEmitError("open: %s", strerror(errno));
         return EJ_RET_READ_FAILURE;
     }
     if (fstat(fd, &fs) != 0) {
-        emitError("fstat: %s", strerror(errno));
+        ejEmitError("fstat: %s", strerror(errno));
         close(fd);
         return EJ_RET_READ_FAILURE;
     }
@@ -177,7 +177,7 @@ ejParseElf(const char *path, ejElfInfo *info)
     local_errno = errno;
     close(fd);
     if (info->map.data == MAP_FAILED) {
-        emitError("mmap: %s", strerror(local_errno));
+        ejEmitError("mmap: %s", strerror(local_errno));
         info->map.data = NULL;
         return EJ_RET_MAP_FAIL;
     }
@@ -188,23 +188,23 @@ ejParseElf(const char *path, ejElfInfo *info)
     }
 
     if (params._64) {
-        find_load_addr = findLoadAddr64;
-        find_shdrs = findShdrs64;
-        info->find_symbol = findSymbol64;
-        info->find_got_entry = findGotEntry64;
+        find_load_addr = ejFindLoadAddr64;
+        find_shdrs = ejFindShdrs64;
+        info->find_symbol = ejFindSymbol64;
+        info->find_got_entry = ejFindGotEntry64;
         info->visible.pointer_size = 8;
     }
     else {
-        find_load_addr = findLoadAddr32;
-        find_shdrs = findShdrs32;
-        info->find_symbol = findSymbol32;
-        info->find_got_entry = findGotEntry32;
+        find_load_addr = ejFindLoadAddr32;
+        find_shdrs = ejFindShdrs32;
+        info->find_symbol = ejFindSymbol32;
+        info->find_got_entry = ejFindGotEntry32;
         info->visible.pointer_size = 4;
     }
 
     ret = find_load_addr(AT_OFFSET(info->map.data, params.phoff), params.phnum, &load_addr);
     if (ret != EJ_RET_OK) {
-        emitError("No LOAD segment found");
+        ejEmitError("No LOAD segment found");
         goto error;
     }
 
@@ -217,13 +217,13 @@ ejParseElf(const char *path, ejElfInfo *info)
     }
 
     if (!info->symbols.start) {
-        emitError(".dynsym not found");
+        ejEmitError(".dynsym not found");
     }
     else if (!info->symbols.strings) {
-        emitError(".dynstr not found");
+        ejEmitError(".dynstr not found");
     }
     else if (info->text_section_index == 0) {
-        emitError(".text not found");
+        ejEmitError(".text not found");
     }
     else {
         return EJ_RET_OK;

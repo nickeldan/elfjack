@@ -9,18 +9,18 @@ getShdrStrings(const struct ejMapInfo *map, const Elf64_Shdr *shdr, size_t *size
     const char *strings;
 
     if (!SHDR_SANITY_CHECK(shdr, map->size)) {
-        emitError("File is not big enough to contain the section header string table");
+        ejEmitError("File is not big enough to contain the section header string table");
         return NULL;
     }
 
     strings = AT_OFFSET(map->data, shdr->sh_offset);
     *size = shdr->sh_size;
     if (*size == 0) {
-        emitError("Section header string table is empty");
+        ejEmitError("Section header string table is empty");
         return NULL;
     }
     if (strings[*size - 1] != '\0') {
-        emitError("Section header string table is not null-terminated");
+        ejEmitError("Section header string table is not null-terminated");
         return NULL;
     }
 
@@ -28,7 +28,7 @@ getShdrStrings(const struct ejMapInfo *map, const Elf64_Shdr *shdr, size_t *size
 }
 
 int
-findLoadAddr64(const void *pheader, uint32_t phnum, unsigned int *load_addr)
+ejFindLoadAddr64(const void *pheader, uint32_t phnum, unsigned int *load_addr)
 {
     const Elf64_Phdr *phdr = pheader;
 
@@ -43,7 +43,7 @@ findLoadAddr64(const void *pheader, uint32_t phnum, unsigned int *load_addr)
 }
 
 int
-findShdrs64(ejElfInfo *info, const struct ehdrParams *params)
+ejFindShdrs64(ejElfInfo *info, const struct ehdrParams *params)
 {
     unsigned int num_found = 0;
     size_t strings_size;
@@ -65,7 +65,7 @@ findShdrs64(ejElfInfo *info, const struct ehdrParams *params)
         }
 
         if (!SHDR_SANITY_CHECK(shdr, info->map.size) || shdr->sh_name >= strings_size) {
-            emitError("File is not big enough to contain section #%llu", (unsigned long long)k);
+            ejEmitError("File is not big enough to contain section #%llu", (unsigned long long)k);
             return EJ_RET_MALFORMED_ELF;
         }
         section_start = AT_OFFSET(info->map.data, shdr->sh_offset);
@@ -79,11 +79,11 @@ findShdrs64(ejElfInfo *info, const struct ehdrParams *params)
             info->symbols.strings = section_start;
             info->symbols.strings_size = shdr->sh_size;
             if (info->symbols.strings_size == 0) {
-                emitError(".dynstr is empty");
+                ejEmitError(".dynstr is empty");
                 return EJ_RET_MALFORMED_ELF;
             }
             if (info->symbols.strings[info->symbols.strings_size - 1] != '\0') {
-                emitError(".dynstr is not null-terminated");
+                ejEmitError(".dynstr is not null-terminated");
                 return EJ_RET_MALFORMED_ELF;
             }
         }
@@ -116,8 +116,8 @@ findShdrs64(ejElfInfo *info, const struct ehdrParams *params)
 }
 
 bool
-findSymbol64(const struct ejSymbolInfo *symbols, const char *func_name, uint16_t section_index, ejAddr *addr,
-             uint64_t *symbol_index)
+ejFindSymbol64(const struct ejSymbolInfo *symbols, const char *func_name, uint16_t section_index,
+               ejAddr *addr, uint64_t *symbol_index)
 {
     const Elf64_Sym *syms = symbols->start;
 
@@ -146,7 +146,7 @@ findSymbol64(const struct ejSymbolInfo *symbols, const char *func_name, uint16_t
 }
 
 ejAddr
-findGotEntry64(const struct ejRelInfo *rels, uint64_t symbol_index)
+ejFindGotEntry64(const struct ejRelInfo *rels, uint64_t symbol_index)
 {
     const unsigned char *object = rels->start;
 
