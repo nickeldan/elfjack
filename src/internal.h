@@ -18,11 +18,11 @@
 #define SHDR_SANITY_CHECK(shdr, map_size) ((shdr)->sh_offset + (shdr)->sh_size <= (map_size))
 
 struct ehdrParams {
+    uint64_t shoff;
     uint64_t shnum;
-    uint16_t shoff;
     uint16_t shstrndx;
+    uint64_t phoff;
     uint32_t phnum;
-    uint16_t phoff;
     unsigned int _64 : 1;
 };
 

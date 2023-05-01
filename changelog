@@ -1,2 +1,5 @@
+0.1.2:
+    - Fixed the computation of shoff.
+
 0.1.1:
     - Added namespacing for hidden functions.
