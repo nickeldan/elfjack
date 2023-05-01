@@ -14,7 +14,7 @@ ejGetError(void)
 }
 
 void
-emitError(const char *format, ...)
+ejEmitError(const char *format, ...)
 {
     va_list args;
 

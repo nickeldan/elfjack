@@ -27,4 +27,4 @@ struct ehdrParams {
 };
 
 void
-emitError(const char *format, ...) EJ_HIDDEN;
+ejEmitError(const char *format, ...) EJ_HIDDEN;
