@@ -97,7 +97,7 @@ parseElfHeader(ejElfInfo *info, struct ehdrParams *params)
     if (params->shnum >= SHN_LORESERVE) {
         const void *sheader = AT_OFFSET(info->map.data, params->shoff);
 
-        if ((unsigned long)params->shoff + shentsize > info->map.size) {
+        if (params->shoff + shentsize > info->map.size) {
             ejEmitError("File is not big enough to contain the section header table");
             return EJ_RET_MALFORMED_ELF;
         }
@@ -118,7 +118,7 @@ parseElfHeader(ejElfInfo *info, struct ehdrParams *params)
         ejEmitError("File contains no section headers");
         return EJ_RET_MISSING_INFO;
     }
-    if ((unsigned long)params->shoff + shentsize * params->shnum > info->map.size) {
+    if (params->shoff + shentsize * params->shnum > info->map.size) {
         ejEmitError("File is not big enough to contain the section header table");
         return EJ_RET_MALFORMED_ELF;
     }
