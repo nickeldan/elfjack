@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#define ELFJACK_VERSION "0.1.2"
+#define ELFJACK_VERSION "0.1.3"
 
 #ifdef __GNUC__
 #define EJ_PURE __attribute__((pure))

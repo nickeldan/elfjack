@@ -173,7 +173,7 @@ ejParseElf(const char *path, ejElfInfo *info)
 
     info->map.size = fs.st_size;
     info->map.map_size = roundUpToPageSize(fs.st_size);
-    info->map.data = mmap(NULL, info->map.map_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    info->map.data = mmap(NULL, info->map.map_size, PROT_READ, MAP_PRIVATE | MAP_ANON, fd, 0);
     local_errno = errno;
     close(fd);
     if (info->map.data == MAP_FAILED) {
