@@ -7,12 +7,6 @@
 
 #include <elfjack/elfjack.h>
 
-#ifdef __GNUC__
-#define EJ_HIDDEN __attribute__((visibility("internal")))
-#else
-#define EJ_HIDDEN
-#endif
-
 #define AT_OFFSET(ptr, offset) ((void *)((unsigned char *)(ptr) + (offset)))
 
 #define SHDR_SANITY_CHECK(shdr, map_size) ((shdr)->sh_offset + (shdr)->sh_size <= (map_size))
@@ -27,4 +21,4 @@ struct ehdrParams {
 };
 
 void
-ejEmitError(const char *format, ...) EJ_HIDDEN;
+ejEmitError(const char *format, ...);
