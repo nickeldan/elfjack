@@ -4,7 +4,13 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#define ELFJACK_VERSION "0.1.2"
+#define ELFJACK_VERSION "0.1.3"
+
+#if defined(__GNUC__) && !defined(EJ_NO_EXPORT)
+#define EJ_EXPORT __attribute__((visibility("default")))
+#else
+#define EJ_EXPORT
+#endif
 
 #ifdef __GNUC__
 #define EJ_PURE __attribute__((pure))
@@ -68,19 +74,19 @@ typedef struct ejElfInfo {
     }
 
 int
-ejParseElf(const char *path, ejElfInfo *info);
+ejParseElf(const char *path, ejElfInfo *info) EJ_EXPORT;
 
 char *
-ejGetError(void) EJ_PURE;
+ejGetError(void) EJ_PURE EJ_EXPORT;
 
 void
-ejReleaseInfo(ejElfInfo *info);
+ejReleaseInfo(ejElfInfo *info) EJ_EXPORT;
 
 ejAddr
-ejFindGotEntry(const ejElfInfo *info, const char *func_name) EJ_PURE;
+ejFindGotEntry(const ejElfInfo *info, const char *func_name) EJ_EXPORT EJ_PURE;
 
 ejAddr
-ejFindFunction(const ejElfInfo *info, const char *func_name) EJ_PURE;
+ejFindFunction(const ejElfInfo *info, const char *func_name) EJ_EXPORT EJ_PURE;
 
 ejAddr
-ejResolveAddress(const ejElfInfo *info, ejAddr addr, ejAddr file_start) EJ_PURE;
+ejResolveAddress(const ejElfInfo *info, ejAddr addr, ejAddr file_start) EJ_EXPORT EJ_PURE;
