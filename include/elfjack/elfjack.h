@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#define ELFJACK_VERSION "0.1.3"
+#define ELFJACK_VERSION "0.1.4"
 
 #if defined(__GNUC__) && !defined(EJ_NO_EXPORT)
 #define EJ_EXPORT __attribute__((visibility("default")))
@@ -51,9 +51,21 @@ struct ejRelInfo {
     unsigned int info_offset;
 };
 
+struct ejIntHelpers {
+    uint16_t (*get_u16)(const void *);
+    uint32_t (*get_u32)(const void *);
+    uint64_t (*get_u64)(const void *);
+};
+
+typedef union ejSymbolValue {
+    ejAddr addr;
+    uint64_t index;
+} ejSymbolValue;
+
 typedef struct ejElfInfo {
-    bool (*find_symbol)(const struct ejSymbolInfo *, const char *, uint16_t, ejAddr *, uint64_t *);
-    ejAddr (*find_got_entry)(const struct ejRelInfo *, uint64_t);
+    bool (*find_symbol)(const struct ejElfInfo *, const char *, uint16_t, ejSymbolValue *value);
+    ejAddr (*find_got_entry)(const struct ejElfInfo *, uint64_t);
+    struct ejIntHelpers helpers;
     struct ejMapInfo map;
     struct ejSymbolInfo symbols;
     struct ejRelInfo rels;
