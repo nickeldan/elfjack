@@ -9,8 +9,6 @@
 
 #define AT_OFFSET(ptr, offset) ((void *)((unsigned char *)(ptr) + (offset)))
 
-#define SHDR_SANITY_CHECK(shdr, map_size) ((shdr)->sh_offset + (shdr)->sh_size <= (map_size))
-
 struct ehdrParams {
     uint64_t shoff;
     uint64_t shnum;
@@ -21,4 +19,8 @@ struct ehdrParams {
 };
 
 void
-ejEmitError(const char *format, ...);
+ejEmitError(const char *format, ...)
+#ifdef __GNUC__
+    __attribute__((format(printf, 1, 2)))
+#endif
+    ;

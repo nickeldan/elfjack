@@ -3,17 +3,23 @@
 
 #include "parse32.h"
 
+static bool
+shdrSanityCheck(const ejElfInfo *info, const Elf32_Shdr *shdr)
+{
+    return info->helpers.get_u32(&shdr->sh_offset) + info->helpers.get_u32(&shdr->sh_size) <= info->map.size;
+}
+
 static const char *
-getShdrStrings(const struct ejMapInfo *map, const Elf32_Shdr *shdr, size_t *size)
+getShdrStrings(const ejElfInfo *info, const Elf32_Shdr *shdr, size_t *size)
 {
     const char *strings;
 
-    if (!SHDR_SANITY_CHECK(shdr, map->size)) {
+    if (!shdrSanityCheck(info, shdr)) {
         ejEmitError("File is not big enough to contain the section header string table");
         return NULL;
     }
 
-    strings = AT_OFFSET(map->data, shdr->sh_offset);
+    strings = AT_OFFSET(info->map.data, info->helpers.get_u32(&shdr->sh_offset));
     *size = shdr->sh_size;
     if (*size == 0) {
         ejEmitError("Section header string table is empty");
@@ -28,13 +34,14 @@ getShdrStrings(const struct ejMapInfo *map, const Elf32_Shdr *shdr, size_t *size
 }
 
 int
-ejFindLoadAddr32(const void *pheader, uint32_t phnum, unsigned int *load_addr)
+ejFindLoadAddr32(const struct ejIntHelpers *helpers, const void *pheader, uint32_t phnum,
+                 unsigned int *load_addr)
 {
     const Elf32_Phdr *phdr = pheader;
 
     for (uint32_t k = 0; k < phnum; k++) {
-        if (phdr[k].p_type == PT_LOAD) {
-            *load_addr = phdr[k].p_offset;
+        if (helpers->get_u32(&phdr[k].p_type) == PT_LOAD) {
+            *load_addr = helpers->get_u32(&phdr[k].p_offset);
             return EJ_RET_OK;
         }
     }
@@ -50,12 +57,13 @@ ejFindShdrs32(ejElfInfo *info, const struct ehdrParams *params)
     const char *strings;
     const Elf32_Shdr *table = AT_OFFSET(info->map.data, params->shoff);
 
-    strings = getShdrStrings(&info->map, &table[params->shstrndx], &strings_size);
+    strings = getShdrStrings(info, &table[params->shstrndx], &strings_size);
     if (!strings) {
         return EJ_RET_MALFORMED_ELF;
     }
 
     for (uint64_t k = 1; k < params->shnum; k++) {
+        uint32_t name, size, entsize;
         const char *section_name;
         const void *section_start;
         const Elf32_Shdr *shdr = &table[k];
@@ -64,20 +72,26 @@ ejFindShdrs32(ejElfInfo *info, const struct ehdrParams *params)
             continue;
         }
 
-        if (!SHDR_SANITY_CHECK(shdr, info->map.size) || shdr->sh_name >= strings_size) {
+        if (!shdrSanityCheck(info, shdr) || (name = info->helpers.get_u32(&shdr->sh_name)) >= strings_size) {
             ejEmitError("File is not big enough to contain section #%llu", (unsigned long long)k);
             return EJ_RET_MALFORMED_ELF;
         }
         section_start = AT_OFFSET(info->map.data, shdr->sh_offset);
         section_name = strings + shdr->sh_name;
 
+        size = info->helpers.get_u32(&shdr->sh_size);
+        entsize = info->helpers.get_u32(&shdr->sh_entsize);
         if (!info->symbols.start && strcmp(section_name, ".dynsym") == 0) {
+            if (entsize == 0) {
+                ejEmitError(".dynsym section has invalid sh_entsize");
+                return EJ_RET_MALFORMED_ELF;
+            }
             info->symbols.start = section_start;
-            info->symbols.count = shdr->sh_size / shdr->sh_entsize;
+            info->symbols.count = size / entsize;
         }
         else if (!info->symbols.strings && strcmp(section_name, ".dynstr") == 0) {
             info->symbols.strings = section_start;
-            info->symbols.strings_size = shdr->sh_size;
+            info->symbols.strings_size = size;
             if (info->symbols.strings_size == 0) {
                 ejEmitError(".dynstr is empty");
                 return EJ_RET_MALFORMED_ELF;
@@ -89,8 +103,12 @@ ejFindShdrs32(ejElfInfo *info, const struct ehdrParams *params)
         }
         else if (!info->rels.start &&
                  (strcmp(section_name, ".rela.plt") == 0 || strcmp(section_name, ".rel.plt") == 0)) {
+            if (entsize == 0) {
+                ejEmitError(".rela.plt section has invalid sh_entsize");
+                return EJ_RET_MALFORMED_ELF;
+            }
             info->rels.start = section_start;
-            info->rels.count = shdr->sh_size / shdr->sh_entsize;
+            info->rels.count = size / entsize;
             if (shdr->sh_type == SHT_RELA) {
                 info->rels.object_size = sizeof(Elf32_Rela);
                 info->rels.info_offset = offsetof(Elf32_Rela, r_info);
@@ -116,27 +134,29 @@ ejFindShdrs32(ejElfInfo *info, const struct ehdrParams *params)
 }
 
 bool
-ejFindSymbol32(const struct ejSymbolInfo *symbols, const char *func_name, uint16_t section_index,
-               ejAddr *addr, uint64_t *symbol_index)
+ejFindSymbol32(const ejElfInfo *info, const char *func_name, uint16_t section_index, ejSymbolValue *value)
 {
-    const Elf32_Sym *syms = symbols->start;
+    const Elf32_Sym *syms = info->symbols.start;
 
-    for (uint64_t k = 0; k < symbols->count; k++) {
+    for (uint64_t k = 0; k < info->symbols.count; k++) {
+        uint32_t name;
         const Elf32_Sym *sym = &syms[k];
 
-        if (ELF32_ST_TYPE(sym->st_info) != STT_FUNC || sym->st_shndx != section_index) {
+        if (ELF32_ST_TYPE(sym->st_info) != STT_FUNC ||
+            info->helpers.get_u16(&sym->st_shndx) != section_index) {
             continue;
         }
 
-        if (sym->st_name >= symbols->strings_size) {
+        name = info->helpers.get_u32(&sym->st_name);
+        if (name >= info->symbols.strings_size) {
             return false;
         }
-        if (strcmp(symbols->strings + sym->st_name, func_name) == 0) {
-            if (addr) {
-                *addr = sym->st_value;
+        if (strcmp(info->symbols.strings + name, func_name) == 0) {
+            if (section_index == 0) {
+                value->index = k;
             }
-            if (symbol_index) {
-                *symbol_index = k;
+            else {
+                value->addr = info->helpers.get_u32(&sym->st_value);
             }
             return true;
         }
@@ -146,15 +166,16 @@ ejFindSymbol32(const struct ejSymbolInfo *symbols, const char *func_name, uint16
 }
 
 ejAddr
-ejFindGotEntry32(const struct ejRelInfo *rels, uint64_t symbol_index)
+ejFindGotEntry32(const ejElfInfo *info, uint64_t symbol_index)
 {
-    const unsigned char *object = rels->start;
+    const unsigned char *object = info->rels.start;
 
-    for (uint64_t k = 0; k < rels->count; k++, object += rels->object_size) {
-        uint32_t info = *(uint32_t *)(object + rels->info_offset);
+    for (uint64_t k = 0; k < info->rels.count; k++, object += info->rels.object_size) {
+        uint32_t rel_info;
 
-        if (ELF32_R_SYM(info) == symbol_index) {
-            return *(Elf32_Addr *)object;
+        rel_info = info->helpers.get_u32(object + info->rels.info_offset);
+        if (ELF32_R_SYM(rel_info) == symbol_index) {
+            return info->helpers.get_u32(object);
         }
     }
 

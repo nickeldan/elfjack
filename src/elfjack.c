@@ -11,6 +11,75 @@
 
 #define INFO_INITIALIZED(info) ((info) && (info)->map.data)
 
+static uint16_t
+getBigU16(const void *src)
+{
+    const unsigned char *data = src;
+
+    return (data[0] << 8) | data[1];
+}
+
+static uint16_t
+getLittleU16(const void *src)
+{
+    const unsigned char *data = src;
+
+    return data[0] | (data[1] << 8);
+}
+
+static uint32_t
+getBigU32(const void *src)
+{
+    uint32_t value = 0;
+    const unsigned char *data = src;
+
+    for (int k = 0; k < 4; k++) {
+        value <<= 8;
+        value |= data[k];
+    }
+
+    return value;
+}
+
+static uint32_t
+getLittleU32(const void *src)
+{
+    uint32_t value = 0;
+    const unsigned char *data = src;
+
+    for (int k = 0; k < 4; k++) {
+        value |= (data[k] << (8 * k));
+    }
+
+    return value;
+}
+
+static uint64_t
+getBigU64(const void *src)
+{
+    uint64_t value = 0;
+    const unsigned char *data = src;
+
+    for (int k = 0; k < 8; k++) {
+        value <<= 8;
+        value |= data[k];
+    }
+
+    return value;
+}
+
+static uint64_t
+getLittleU64(const void *src)
+{
+    uint64_t value = 0;
+    const unsigned char *data = src;
+
+    for (int k = 0; k < 8; k++) {
+        value |= ((uint64_t)data[k] << (8 * k));
+    }
+
+    return value;
+}
 static size_t
 pageSize(void)
 {
@@ -52,8 +121,18 @@ parseElfHeader(ejElfInfo *info, struct ehdrParams *params)
     }
 
     switch (ehdr_64->e_ident[EI_DATA]) {
-    case ELFDATA2LSB: info->visible.little_endian = true; break;
-    case ELFDATA2MSB: info->visible.little_endian = false; break;
+    case ELFDATA2LSB:
+        info->visible.little_endian = true;
+        info->helpers.get_u16 = getLittleU16;
+        info->helpers.get_u32 = getLittleU32;
+        info->helpers.get_u64 = getLittleU64;
+        break;
+    case ELFDATA2MSB:
+        info->visible.little_endian = false;
+        info->helpers.get_u16 = getBigU16;
+        info->helpers.get_u32 = getBigU32;
+        info->helpers.get_u64 = getBigU64;
+        break;
     default: ejEmitError("Invalid EI_DATA in ELF header"); return EJ_RET_MALFORMED_ELF;
     }
 
@@ -62,25 +141,28 @@ parseElfHeader(ejElfInfo *info, struct ehdrParams *params)
         return EJ_RET_MALFORMED_ELF;
     }
 
+#define EHDR64_FIELD(field) AT_OFFSET(ehdr_64, offsetof(Elf64_Ehdr, e_##field))
+#define EHDR32_FIELD(field) AT_OFFSET(ehdr_32, offsetof(Elf32_Ehdr, e_##field))
+
     info->visible.machine = ehdr_64->e_machine;
 
     if (params->_64) {
-        params->phoff = ehdr_64->e_phoff;
-        params->phnum = ehdr_64->e_phnum;
-        params->shoff = ehdr_64->e_shoff;
-        params->shnum = ehdr_64->e_shnum;
-        params->shstrndx = ehdr_64->e_shstrndx;
-        phentsize = ehdr_64->e_phentsize;
-        shentsize = ehdr_64->e_shentsize;
+        params->phoff = info->helpers.get_u64(EHDR64_FIELD(phoff));
+        params->phnum = info->helpers.get_u16(EHDR64_FIELD(phnum));
+        params->shoff = info->helpers.get_u64(EHDR64_FIELD(shoff));
+        params->shnum = info->helpers.get_u16(EHDR64_FIELD(shnum));
+        params->shstrndx = info->helpers.get_u16(EHDR64_FIELD(shstrndx));
+        phentsize = info->helpers.get_u16(EHDR64_FIELD(phentsize));
+        shentsize = info->helpers.get_u16(EHDR64_FIELD(shentsize));
     }
     else {
-        params->phoff = ehdr_32->e_phoff;
-        params->phnum = ehdr_32->e_phnum;
-        params->shoff = ehdr_32->e_shoff;
-        params->shnum = ehdr_32->e_shnum;
-        params->shstrndx = ehdr_32->e_shstrndx;
-        phentsize = ehdr_32->e_phentsize;
-        shentsize = ehdr_32->e_shentsize;
+        params->phoff = info->helpers.get_u32(EHDR32_FIELD(phoff));
+        params->phnum = info->helpers.get_u16(EHDR32_FIELD(phnum));
+        params->shoff = info->helpers.get_u32(EHDR32_FIELD(shoff));
+        params->shnum = info->helpers.get_u16(EHDR32_FIELD(shnum));
+        params->shstrndx = info->helpers.get_u16(EHDR32_FIELD(shstrndx));
+        phentsize = info->helpers.get_u16(EHDR32_FIELD(phentsize));
+        shentsize = info->helpers.get_u16(EHDR32_FIELD(shentsize));
     }
 
     if (params->shstrndx >= params->shnum) {
@@ -88,7 +170,7 @@ parseElfHeader(ejElfInfo *info, struct ehdrParams *params)
         return EJ_RET_MALFORMED_ELF;
     }
 
-    switch (ehdr_64->e_type) {
+    switch (info->helpers.get_u16(EHDR64_FIELD(type))) {
     case ET_DYN: info->dynamic = true; break;
     case ET_EXEC: break;
     default: ejEmitError("File is neither an executable nor a shared object"); return EJ_RET_NOT_ELF;
@@ -105,12 +187,12 @@ parseElfHeader(ejElfInfo *info, struct ehdrParams *params)
         if (params->_64) {
             const Elf64_Shdr *shdr = sheader;
 
-            params->shnum = shdr->sh_size;
+            params->shnum = info->helpers.get_u64(AT_OFFSET(shdr, offsetof(Elf64_Shdr, sh_size)));
         }
         else {
             const Elf32_Shdr *shdr = sheader;
 
-            params->shnum = shdr->sh_size;
+            params->shnum = info->helpers.get_u32(AT_OFFSET(shdr, offsetof(Elf32_Shdr, sh_size)));
         }
     }
 
@@ -127,7 +209,7 @@ parseElfHeader(ejElfInfo *info, struct ehdrParams *params)
         unsigned int info_offset =
             params->_64 ? offsetof(Elf64_Shdr, sh_info) : offsetof(Elf32_Shdr, sh_info);
 
-        params->phnum = *(uint32_t *)AT_OFFSET(info->map.data, params->shoff + info_offset);
+        params->phnum = info->helpers.get_u32(AT_OFFSET(info->map.data, params->shoff + info_offset));
     }
 
     if (params->phnum == 0) {
@@ -140,6 +222,8 @@ parseElfHeader(ejElfInfo *info, struct ehdrParams *params)
     }
 
     return EJ_RET_OK;
+#undef EHDR64_FIELD
+#undef EHDR32_FIELD
 }
 
 int
@@ -150,7 +234,7 @@ ejParseElf(const char *path, ejElfInfo *info)
     size_t page_mask;
     struct stat fs;
     struct ehdrParams params;
-    int (*find_load_addr)(const void *, uint32_t, unsigned int *);
+    int (*find_load_addr)(const struct ejIntHelpers *, const void *, uint32_t, unsigned int *);
     int (*find_shdrs)(ejElfInfo *, const struct ehdrParams *);
 
     if (!path || !info) {
@@ -202,7 +286,7 @@ ejParseElf(const char *path, ejElfInfo *info)
         info->visible.pointer_size = 4;
     }
 
-    ret = find_load_addr(AT_OFFSET(info->map.data, params.phoff), params.phnum, &load_addr);
+    ret = find_load_addr(&info->helpers, AT_OFFSET(info->map.data, params.phoff), params.phnum, &load_addr);
     if (ret != EJ_RET_OK) {
         ejEmitError("No LOAD segment found");
         goto error;
@@ -250,33 +334,33 @@ ejReleaseInfo(ejElfInfo *info)
 ejAddr
 ejFindGotEntry(const ejElfInfo *info, const char *func_name)
 {
-    uint64_t symbol_index;
+    ejSymbolValue value;
 
     if (!INFO_INITIALIZED(info) || !func_name || !info->rels.start) {
         return EJ_ADDR_NOT_FOUND;
     }
 
-    if (!info->find_symbol(&info->symbols, func_name, 0, NULL, &symbol_index)) {
+    if (!info->find_symbol(info, func_name, 0, &value)) {
         return EJ_ADDR_NOT_FOUND;
     }
 
-    return info->find_got_entry(&info->rels, symbol_index);
+    return info->find_got_entry(info, value.index);
 }
 
 ejAddr
 ejFindFunction(const ejElfInfo *info, const char *func_name)
 {
-    ejAddr addr;
+    ejSymbolValue value;
 
     if (!INFO_INITIALIZED(info) || !func_name) {
         return EJ_ADDR_NOT_FOUND;
     }
 
-    if (!info->find_symbol(&info->symbols, func_name, info->text_section_index, &addr, NULL)) {
+    if (!info->find_symbol(info, func_name, info->text_section_index, &value)) {
         return EJ_ADDR_NOT_FOUND;
     }
 
-    return addr;
+    return value.addr;
 }
 
 ejAddr
