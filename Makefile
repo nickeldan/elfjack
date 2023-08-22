@@ -21,7 +21,7 @@ include make.mk
 APP_DIR := apps
 include $(APP_DIR)/make.mk
 
-.PHONY: all _all format install uninstall clean $(CLEAN_TARGETS)
+.PHONY: all _all format install uninstall clean
 
 _all: $(EJ_SHARED_LIBRARY) $(EJ_STATIC_LIBRARY) $(APPS)
 

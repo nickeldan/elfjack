@@ -41,6 +41,7 @@ $(EJ_STATIC_LIBRARY): $(EJ_OBJECT_FILES)
 ej_clean:
 	@rm -f $(EJ_SHARED_LIBRARY) $(EJ_STATIC_LIBRARY) $(EJ_OBJECT_FILES)
 
+.PHONY: ej_clean
 CLEAN_TARGETS += ej_clean
 
 endif

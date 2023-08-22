@@ -80,6 +80,7 @@ getLittleU64(const void *src)
 
     return value;
 }
+
 static size_t
 pageSize(void)
 {
@@ -141,28 +142,25 @@ parseElfHeader(ejElfInfo *info, struct ehdrParams *params)
         return EJ_RET_MALFORMED_ELF;
     }
 
-#define EHDR64_FIELD(field) AT_OFFSET(ehdr_64, offsetof(Elf64_Ehdr, e_##field))
-#define EHDR32_FIELD(field) AT_OFFSET(ehdr_32, offsetof(Elf32_Ehdr, e_##field))
-
     info->visible.machine = ehdr_64->e_machine;
 
     if (params->_64) {
-        params->phoff = info->helpers.get_u64(EHDR64_FIELD(phoff));
-        params->phnum = info->helpers.get_u16(EHDR64_FIELD(phnum));
-        params->shoff = info->helpers.get_u64(EHDR64_FIELD(shoff));
-        params->shnum = info->helpers.get_u16(EHDR64_FIELD(shnum));
-        params->shstrndx = info->helpers.get_u16(EHDR64_FIELD(shstrndx));
-        phentsize = info->helpers.get_u16(EHDR64_FIELD(phentsize));
-        shentsize = info->helpers.get_u16(EHDR64_FIELD(shentsize));
+        params->phoff = info->helpers.get_u64(&ehdr_64->e_phoff);
+        params->phnum = info->helpers.get_u16(&ehdr_64->e_phnum);
+        params->shoff = info->helpers.get_u64(&ehdr_64->e_shoff);
+        params->shnum = info->helpers.get_u16(&ehdr_64->e_shnum);
+        params->shstrndx = info->helpers.get_u16(&ehdr_64->e_shstrndx);
+        phentsize = info->helpers.get_u16(&ehdr_64->e_phentsize);
+        shentsize = info->helpers.get_u16(&ehdr_64->e_shentsize);
     }
     else {
-        params->phoff = info->helpers.get_u32(EHDR32_FIELD(phoff));
-        params->phnum = info->helpers.get_u16(EHDR32_FIELD(phnum));
-        params->shoff = info->helpers.get_u32(EHDR32_FIELD(shoff));
-        params->shnum = info->helpers.get_u16(EHDR32_FIELD(shnum));
-        params->shstrndx = info->helpers.get_u16(EHDR32_FIELD(shstrndx));
-        phentsize = info->helpers.get_u16(EHDR32_FIELD(phentsize));
-        shentsize = info->helpers.get_u16(EHDR32_FIELD(shentsize));
+        params->phoff = info->helpers.get_u32(&ehdr_32->e_phoff);
+        params->phnum = info->helpers.get_u16(&ehdr_32->e_phnum);
+        params->shoff = info->helpers.get_u32(&ehdr_32->e_shoff);
+        params->shnum = info->helpers.get_u16(&ehdr_32->e_shnum);
+        params->shstrndx = info->helpers.get_u16(&ehdr_32->e_shstrndx);
+        phentsize = info->helpers.get_u16(&ehdr_32->e_phentsize);
+        shentsize = info->helpers.get_u16(&ehdr_32->e_shentsize);
     }
 
     if (params->shstrndx >= params->shnum) {
@@ -170,7 +168,7 @@ parseElfHeader(ejElfInfo *info, struct ehdrParams *params)
         return EJ_RET_MALFORMED_ELF;
     }
 
-    switch (info->helpers.get_u16(EHDR64_FIELD(type))) {
+    switch (info->helpers.get_u16(&ehdr_64->e_type)) {
     case ET_DYN: info->dynamic = true; break;
     case ET_EXEC: break;
     default: ejEmitError("File is neither an executable nor a shared object"); return EJ_RET_NOT_ELF;
@@ -222,8 +220,6 @@ parseElfHeader(ejElfInfo *info, struct ehdrParams *params)
     }
 
     return EJ_RET_OK;
-#undef EHDR64_FIELD
-#undef EHDR32_FIELD
 }
 
 int

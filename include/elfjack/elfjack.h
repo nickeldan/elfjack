@@ -63,7 +63,7 @@ typedef union ejSymbolValue {
 } ejSymbolValue;
 
 typedef struct ejElfInfo {
-    bool (*find_symbol)(const struct ejElfInfo *, const char *, uint16_t, ejSymbolValue *value);
+    bool (*find_symbol)(const struct ejElfInfo *, const char *, uint16_t, ejSymbolValue *);
     ejAddr (*find_got_entry)(const struct ejElfInfo *, uint64_t);
     struct ejIntHelpers helpers;
     struct ejMapInfo map;
