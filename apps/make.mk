@@ -6,4 +6,5 @@ APPS := $(patsubst $(APP_DIR)/%.c,%,$(wildcard $(APP_DIR)/*.c))
 app_clean:
 	@rm -f $(APPS)
 
+.PHONY: app_clean
 CLEAN_TARGETS += app_clean

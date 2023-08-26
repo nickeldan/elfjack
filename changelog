@@ -1,3 +1,6 @@
+0.2.0:
+    - The apps now only output the address upon success.
+
 0.1.4:
     - Integer fields are more carefully handled to avoid misalignment errors.
 

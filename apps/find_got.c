@@ -6,7 +6,7 @@
 static void
 usage(const char *executable)
 {
-    printf("Usage: %s [path to elf] [function name]", executable);
+    fprintf(stderr, "Usage: %s [path to elf] [function name]", executable);
 }
 
 int
@@ -34,19 +34,19 @@ main(int argc, char **argv)
 
     ret = ejParseElf(argv[1], &info);
     if (ret != EJ_RET_OK) {
-        printf("Failed to parse ELF file: %s\n", ejGetError());
+        fprintf(stderr, "Failed to parse ELF file: %s\n", ejGetError());
         return ret;
     }
 
     function_name = argv[2];
     addr = ejFindGotEntry(&info, function_name);
     if (addr == EJ_ADDR_NOT_FOUND) {
-        printf("No GOT entry found for %s\n", function_name);
+        ret = 1;
     }
     else {
-        printf("GOT entry for %s is at relative address 0x%llx\n", function_name, addr);
+        printf("0x%llx\n", addr);
     }
 
     ejReleaseInfo(&info);
-    return EJ_RET_OK;
+    return ret;
 }
