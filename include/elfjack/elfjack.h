@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#define ELFJACK_VERSION "0.1.4"
+#define ELFJACK_VERSION "0.2.0"
 
 #if defined(__GNUC__) && !defined(EJ_NO_EXPORT)
 #define EJ_EXPORT __attribute__((visibility("default")))
